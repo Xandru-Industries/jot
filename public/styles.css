@@ -263,6 +263,7 @@ input:focus, textarea:focus { border-color: var(--muted); }
   display: grid; grid-template-columns: 1fr 1fr;
   height: calc(100vh - var(--toolbar-height)); overflow: hidden;
 }
+.workspace.rich-workspace { display: block; }
 .editor-pane {
   border-right: 1px solid var(--line); background: var(--editor-bg); overflow: hidden;
   display: flex; flex-direction: column; position: relative;
@@ -294,6 +295,18 @@ input:focus, textarea:focus { border-color: var(--muted); }
 .preview-canvas { position: relative; min-height: 100%; }
 .preview-content { max-width: 880px; min-height: 100%; margin: 0 auto; padding: 2rem 1.75rem 8rem 2.5rem; }
 .preview-stage.public .preview-content { max-width: 980px; }
+
+.rich-editor {
+  max-width: 880px; min-height: 100%; margin: 0 auto; padding: 3.25rem 2.5rem 8rem;
+}
+.rich-editor .milkdown { min-height: 100%; }
+.rich-editor .ProseMirror {
+  min-height: calc(100vh - var(--toolbar-height) - 11.25rem);
+  outline: none; caret-color: var(--text); white-space: pre-wrap;
+}
+.rich-editor .ProseMirror ::selection { background: var(--yellow-strong); }
+.rich-editor .ProseMirror-focused { outline: none; }
+.rich-editor-stage { background: var(--preview-bg); }
 
 .markdown-body { color: var(--text); line-height: 1.6; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; }
 .markdown-body > :first-child { margin-top: 0; }
@@ -506,6 +519,9 @@ input:focus, textarea:focus { border-color: var(--muted); }
     transition: transform 250ms ease;
     min-height: 100vh; height: 100vh;
   }
+  .workspace.rich-workspace .preview-stage {
+    position: static; transform: none; min-height: 100%; height: 100%;
+  }
   .workspace .preview-stage.preview-open {
     transform: translateX(0);
   }
@@ -519,6 +535,7 @@ input:focus, textarea:focus { border-color: var(--muted); }
   .preview-scroll { height: 100%; }
   .preview-canvas { padding-right: 0; }
   .preview-content, .preview-stage.public .preview-content { width: auto; max-width: none; padding: 2rem 1rem 1rem; }
+  .rich-editor { width: auto; max-width: none; padding: 2rem 1rem 6rem; }
   .thread-rail { display: none !important; }
   .selection-bubble { display: none !important; }
   .topbar-desktop { display: none !important; }

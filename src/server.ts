@@ -133,6 +133,7 @@ const authFilePath = path.join(dataDir, "auth.json");
 const publicDir = path.join(path.resolve(__dirname, ".."), "public");
 const ownerSessionCookieName = "md_owner_session";
 const ownerLocalStorageTokenKey = "md_owner_token";
+const richEditorBuildVersion = process.env.JOT_BUILD_VERSION || "0.1.2";
 const commenterIdCookieName = "md_commenter_id";
 const commenterNameCookieName = "md_commenter_name";
 const ownerCookieMaxAgeSeconds = 60 * 60 * 24 * 30;
@@ -2178,7 +2179,7 @@ function renderAppShell(
   </head>
   <body class="page-shell app-page" ${attrs}>
     <div id="app"></div>
-    <script>window.__OWNER_TOKEN_KEY__ = ${JSON.stringify(ownerLocalStorageTokenKey)};</script>
+    <script>window.__OWNER_TOKEN_KEY__ = ${JSON.stringify(ownerLocalStorageTokenKey)}; window.__RICH_EDITOR_URL__ = ${JSON.stringify(`/static/generated/rich-editor.js?v=${richEditorBuildVersion}`)};</script>
     <script>document.querySelectorAll('.theme-toggle').forEach(function(b){b.innerHTML=window.__themeIcon(document.documentElement.getAttribute('data-theme')||'dark')});</script>
     <script src="/static/components.js"></script>${
       page !== "list"

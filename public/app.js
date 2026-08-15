@@ -315,14 +315,14 @@
 
     const previewScroll = document.getElementById("previewScroll");
     const previewCanvas = document.getElementById("previewCanvas");
-    const previewContent = document.getElementById("previewContent");
+    const richEditorRoot = document.getElementById("richEditor");
+    const previewContent = document.getElementById("previewContent") || richEditorRoot;
     const threadRail = document.getElementById("threadRail");
     const highlightLayer = document.getElementById("highlightLayer");
     const selectionBubble = document.getElementById("selectionBubble");
     const modalBackdrop = document.getElementById("modalBackdrop");
     const topbarTitle = document.getElementById("topbarTitle");
     const titleInput = document.getElementById("titleInput");
-    const editorTextarea = document.getElementById("editorTextarea");
     const shareButton = document.getElementById("shareButton");
     const notesButton = document.getElementById("notesButton");
     const newNoteButton = document.getElementById("newNoteButton");
@@ -345,7 +345,7 @@
       modalBackdrop,
       topbarTitle,
       titleInput,
-      editorTextarea,
+      richEditorRoot,
       shareButton,
       notesButton,
       newNoteButton,
@@ -408,25 +408,25 @@
     let collabEditor = null;
 
     function initCollabEditor() {
-      if (!editorTextarea) return;
-      import("/static/collab-editor.js").then(({ createCollabEditor }) => {
-        collabEditor = createCollabEditor(editorTextarea, {
+      if (!richEditorRoot) return;
+      const editorUrl = window.__RICH_EDITOR_URL__ || "/static/generated/rich-editor.js";
+      import(editorUrl).then(({ createRichCollabEditor }) => {
+        return createRichCollabEditor({
+          root: richEditorRoot,
           noteId: isPublic ? undefined : noteId,
           shareId: isPublic ? shareId : undefined,
-          name: isPublic ? (state.viewer?.commenterName || "Anonymous") : "Owner",
-          onReady: (payload) => {
+          onReady: (markdown, payload) => {
             state.note = {
               ...(state.note || {}),
               id: payload.noteId,
               title: payload.title,
               shareId: payload.shareId,
-              markdown: payload.markdown,
+              markdown,
             };
             if (refs.titleInput && document.activeElement !== refs.titleInput) {
               refs.titleInput.value = payload.title;
             }
             if (refs.topbarTitle) refs.topbarTitle.textContent = payload.title || "untitled";
-            scheduleRender(refs);
           },
           onTextChange: (text) => {
             if (!state.note) {
@@ -434,9 +434,9 @@
             } else {
               state.note.markdown = text;
             }
-            scheduleRender(refs);
           },
-          onConnectionChange: (connected) => {
+          onStatusChange: (status) => {
+            const connected = status === "connected";
             setSaveStatus(refs, connected ? "" : "Disconnected");
             const banner = document.getElementById("disconnectedBanner");
             if (banner) banner.classList.toggle("hidden", connected);
@@ -445,10 +445,15 @@
             reloadThreads(isPublic);
           },
         });
+      }).then((editor) => {
+        collabEditor = editor;
+      }).catch((error) => {
+        console.error("Failed to initialize rich editor:", error);
+        setSaveStatus(refs, "Editor unavailable");
       });
     }
 
-    if (editorTextarea && !isPublic) {
+    if (richEditorRoot && !isPublic) {
       initCollabEditor();
     }
 
@@ -599,7 +604,8 @@
 
     loadNote().catch((error) => {
       console.error(error);
-      refs.previewContent.innerHTML = `<p>${escapeHtml(error.message || "Failed to load note.")}</p>`;
+      const content = refs.previewContent || refs.richEditorRoot;
+      if (content) content.innerHTML = `<p>${escapeHtml(error.message || "Failed to load note.")}</p>`;
     });
 
     async function loadNote() {
@@ -687,18 +693,9 @@
         if (state.saveStatus !== "Saving") {
           state.note.markdown = payload.note.markdown;
           state.note.title = payload.note.title;
-          if (refsArg.editorTextarea && refsArg.editorTextarea.value !== payload.note.markdown) {
-            const scrollTop = refsArg.editorTextarea.scrollTop;
-            const selStart = refsArg.editorTextarea.selectionStart;
-            const selEnd = refsArg.editorTextarea.selectionEnd;
-            refsArg.editorTextarea.value = payload.note.markdown;
-            refsArg.editorTextarea.scrollTop = scrollTop;
-            refsArg.editorTextarea.setSelectionRange(selStart, selEnd);
-          }
           if (refsArg.titleInput && refsArg.titleInput.value !== payload.note.title) {
             refsArg.titleInput.value = payload.note.title;
           }
-          setPreviewHtml(refsArg, payload.note.renderedHtml || "");
         }
       }
 
@@ -741,10 +738,7 @@
       if (refsArg.titleInput) {
         refsArg.titleInput.value = payload.note.title || "untitled";
       }
-      if (refsArg.editorTextarea) {
-        refsArg.editorTextarea.value = payload.note.markdown || "";
-      }
-      setPreviewHtml(refsArg, payload.note.renderedHtml || "");
+      if (publicMode && !isPublicEdit) setPreviewHtml(refsArg, payload.note.renderedHtml || "");
       if (refsArg.commenterLabel) {
         refsArg.commenterLabel.textContent = payload.viewer.commenterName ? payload.viewer.commenterName : "anonymous";
       }
@@ -756,18 +750,6 @@
       syncThreadLayout(refsArg);
     }
 
-    function scheduleRender(refsArg) {
-      clearTimeout(state.renderTimer);
-      state.renderTimer = setTimeout(async () => {
-        const endpoint = isPublic ? `/api/share/${shareId}/render` : "/api/render";
-        const payload = await api(endpoint, {
-          method: "POST",
-          body: { markdown: state.note?.markdown || "" },
-        });
-        setPreviewHtml(refsArg, payload.html);
-        syncThreadLayout(refsArg);
-      }, 150);
-    }
   }
 
   function renderEditorLayout() {
@@ -780,7 +762,6 @@
             <span class="status-text" id="saveStatus"></span>
           </div>
           <div class="topbar-right">
-            <jot-icon-button icon="preview" label="Preview" id="previewFab"></jot-icon-button>
             <jot-icon-button icon="robot" label="Agent setup" id="agentButton"></jot-icon-button>
             <div class="share-popover-wrap" id="sharePopoverWrap">
               <jot-icon-button icon="share" label="Share" id="shareButton"></jot-icon-button>
@@ -789,20 +770,16 @@
             <button type="button" class="jot-btn-icon jot-btn-icon--md theme-toggle" aria-label="Toggle theme">${themeIcon(document.documentElement.getAttribute("data-theme") || "dark")}</button>
           </div>
         </header>
-        <main class="workspace">
-          <section class="editor-pane">
+        <main class="workspace rich-workspace">
+          <section class="preview-stage rich-editor-stage" id="previewStage">
             <div id="disconnectedBanner" class="editor-disconnected hidden">Disconnected. Reconnecting...</div>
-            <textarea id="editorTextarea" class="editor-textarea" spellcheck="false"></textarea>
-          </section>
-          <section class="preview-stage" id="previewStage">
-            <jot-icon-button icon="close" label="Close preview" id="previewCloseButton" class="preview-close-btn"></jot-icon-button>
             <div class="preview-controls" id="previewControls">
               <jot-button variant="ghost" size="sm" id="commentsButton">hide comments</jot-button>
               <jot-button variant="ghost" size="sm" id="resolvedButton">resolved</jot-button>
             </div>
             <div class="preview-scroll" id="previewScroll">
               <div class="preview-canvas" id="previewCanvas">
-                <div class="preview-content markdown-body" id="previewContent"></div>
+                <div class="rich-editor markdown-body" id="richEditor"></div>
                 <div class="highlight-layer" id="highlightLayer"></div>
                 <button type="button" class="selection-bubble hidden" id="selectionBubble">+ Comment</button>
                 <button type="button" class="comment-fab" id="commentFab">+ Comment</button>
@@ -868,25 +845,20 @@
             <span class="status-text" id="saveStatus"></span>
           </div>
           <div class="topbar-right">
-            <jot-icon-button icon="preview" label="Preview" id="previewFab"></jot-icon-button>
             <jot-icon-button icon="robot" label="Agent setup" id="agentButton"></jot-icon-button>
             <button type="button" class="jot-btn-icon jot-btn-icon--md theme-toggle" aria-label="Toggle theme">${themeIcon(document.documentElement.getAttribute("data-theme") || "dark")}</button>
           </div>
         </header>
-        <main class="workspace">
-          <section class="editor-pane">
+        <main class="workspace rich-workspace">
+          <section class="preview-stage rich-editor-stage" id="previewStage">
             <div id="disconnectedBanner" class="editor-disconnected hidden">Disconnected. Reconnecting...</div>
-            <textarea id="editorTextarea" class="editor-textarea" spellcheck="false"></textarea>
-          </section>
-          <section class="preview-stage" id="previewStage">
-            <jot-icon-button icon="close" label="Close preview" id="previewCloseButton" class="preview-close-btn"></jot-icon-button>
             <div class="preview-controls" id="previewControls">
               <jot-button variant="ghost" size="sm" id="commentsButton">hide comments</jot-button>
               <jot-button variant="ghost" size="sm" id="resolvedButton">resolved</jot-button>
             </div>
             <div class="preview-scroll" id="previewScroll">
               <div class="preview-canvas" id="previewCanvas">
-                <div class="preview-content markdown-body" id="previewContent"></div>
+                <div class="rich-editor markdown-body" id="richEditor"></div>
                 <div class="highlight-layer" id="highlightLayer"></div>
                 <button type="button" class="selection-bubble hidden" id="selectionBubble">+ Comment</button>
                 <button type="button" class="comment-fab" id="commentFab">+ Comment</button>
