@@ -1,6 +1,8 @@
 import { createCollabSession, type CollabSnapshot, type CollabStatus } from "./collab-session";
 import { createRichEditor } from "./rich-editor";
 
+export { createRichEditor } from "./rich-editor";
+
 export type CreateRichCollabEditorOptions = {
   root: HTMLElement;
   noteId?: string;
@@ -28,13 +30,26 @@ export async function createRichCollabEditor(options: CreateRichCollabEditorOpti
         root: options.root,
         markdown: snapshot.markdown,
         onChange: (markdown) => session.replaceMarkdown(markdown),
+        onSelectionChange: (selection) => session.setSelection(selection),
       });
+      session.setSelectionProvider(() => richEditor?.getSourceSelection() || { start: 0, end: 0, direction: "none" });
+      session.setRemotePresenceHandler((peers) => richEditor?.updatePresence(peers));
+      if (typeof window !== "undefined") {
+        (window as any).__jotRichEditorDebug = {
+          insertText: (text: string) => richEditor?.insertText(text),
+          getMarkdown: () => richEditor?.getMarkdown(),
+          getSourceSelection: () => richEditor?.getSourceSelection(),
+          setSourceSelection: (selection: any) => richEditor?.setSourceSelection(selection),
+          beginComposition: () => richEditor?.beginComposition(),
+          endComposition: () => richEditor?.endComposition(),
+        };
+      }
       options.onReady(snapshot.markdown, snapshot);
       resolveReady?.();
     },
-    onSnapshot: (markdown, authoritative) => {
+    onSnapshot: (markdown, authoritative, selection) => {
       latestAuthoritativeMarkdown = markdown;
-      if (authoritative) richEditor?.replaceMarkdown(markdown);
+      if (authoritative) richEditor?.replaceMarkdown(markdown, selection);
       options.onTextChange(markdown);
     },
     onStatusChange: options.onStatusChange,
@@ -49,6 +64,7 @@ export async function createRichCollabEditor(options: CreateRichCollabEditorOpti
       destroyed = true;
       session.destroy();
       void richEditor?.destroy();
+      if (typeof window !== "undefined") delete (window as any).__jotRichEditorDebug;
     },
   };
 }

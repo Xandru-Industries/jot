@@ -351,23 +351,21 @@ input:focus, textarea:focus { border-color: var(--muted); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-/* --- Cursor overlay for remote cursors --- */
-.cursor-overlay {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none; overflow: hidden; z-index: 2;
+/* --- Rich remote selections and cursors --- */
+.remote-selection { background: color-mix(in srgb, var(--remote-color) 24%, transparent); }
+.remote-cursor { position: relative; display: inline-block; width: 0; height: 1em; pointer-events: none; vertical-align: text-bottom; }
+.remote-cursor-caret {
+  position: absolute; left: -1px; bottom: -0.1em; width: 2px; height: 1.35em;
+  border-radius: 1px; background: var(--remote-color);
 }
-.remote-cursor { position: absolute; pointer-events: none; }
-.remote-cursor-caret { width: 2px; border-radius: 1px; }
 .remote-cursor-label {
-  position: absolute; bottom: 100%; left: -1px;
+  position: absolute; bottom: 1.25em; left: -1px;
   font-size: 10px; line-height: 1; padding: 2px 5px;
   border-radius: 3px 3px 3px 0; white-space: nowrap;
   color: #fff; font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-weight: 600; opacity: 0.9;
+  font-weight: 600; opacity: 0.9; background: var(--remote-color);
 }
-
-/* --- Textarea mirror (hidden, for caret position measurement) --- */
-.textarea-mirror { position: absolute !important; visibility: hidden !important; overflow: hidden !important; pointer-events: none !important; z-index: -1; top: 0; left: 0; }
+.remote-cursor-label::after { content: attr(data-label); }
 
 /* --- Share popover --- */
 .share-popover-wrap { position: relative; display: inline-flex; }

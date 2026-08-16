@@ -441,7 +441,7 @@
             const banner = document.getElementById("disconnectedBanner");
             if (banner) banner.classList.toggle("hidden", connected);
           },
-          onThreadsUpdated: () => {
+          onThreadsChanged: () => {
             reloadThreads(isPublic);
           },
         });
