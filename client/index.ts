@@ -2,6 +2,7 @@ import { createCollabSession, type CollabSnapshot, type CollabStatus } from "./c
 import { createRichEditor } from "./rich-editor";
 
 export { createRichEditor } from "./rich-editor";
+export { sanitizeMermaidSvg } from "./plugins/mermaid";
 
 export type CreateRichCollabEditorOptions = {
   root: HTMLElement;

@@ -349,6 +349,15 @@ input:focus, textarea:focus { border-color: var(--muted); }
 .mermaid-viewport pre.mermaid { margin: 0; border: none; padding: 1.5rem 1rem 1rem; display: flex; justify-content: center; transition: transform 0.15s ease; transform-origin: 0 0; }
 .mermaid-toolbar { position: absolute; bottom: 0.5rem; right: 0.5rem; display: grid; grid-template-columns: repeat(3, 32px); grid-template-rows: repeat(3, 32px); gap: 3px; z-index: 1; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
 .mermaid-wrap:hover .mermaid-toolbar { opacity: 1; pointer-events: auto; }
+.mermaid-node { margin: 0 0 1rem; border: 1px solid var(--code-border); border-radius: 14px; overflow: hidden; background: var(--code-bg); }
+.mermaid-node .mermaid-preview { position: relative; min-height: 9rem; overflow: hidden; padding: 1rem; }
+.mermaid-node .mermaid-diagram { transform-origin: 0 0; pointer-events: none; }
+.mermaid-node .mermaid-toolbar { z-index: 2; opacity: 0.35; pointer-events: auto; }
+.mermaid-node .mermaid-diagram svg { display: block; max-width: 100%; margin: 0 auto; }
+.mermaid-node:hover .mermaid-toolbar, .mermaid-node:focus-within .mermaid-toolbar { opacity: 1; pointer-events: auto; }
+.mermaid-node .mermaid-source-wrap { margin: 0; border: 0; border-top: 1px solid var(--code-border); border-radius: 0; }
+.mermaid-node .mermaid-source { display: block; min-height: 2.5rem; white-space: pre; }
+.mermaid-node .mermaid-error { color: var(--danger); padding: 0.75rem; white-space: pre-wrap; }
 .mermaid-toolbar button { background: var(--bg-3); color: var(--text); border: 1px solid var(--code-border); border-radius: 8px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
 .mermaid-toolbar button:hover { background: var(--line); }
 

@@ -24,7 +24,7 @@
 
   async function renderMermaid(container) {
     const m = window.__mermaid;
-    if (!m || !container) return;
+    if (!m || !container || container.closest("#richEditor")) return;
     const freshNodes = Array.from(container.querySelectorAll("pre.mermaid")).filter((node) => node.textContent.trim());
 
     // Reuse cached wrappers for unchanged diagrams, preserving pan/zoom state
