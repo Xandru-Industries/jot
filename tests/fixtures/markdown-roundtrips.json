@@ -1,0 +1,20 @@
+[
+  {
+    "name": "inline formatting and safe links",
+    "source": "**strong** and *emphasis*, ~~strike~~, `code`, <https://example.com>, and [safe](https://example.com).",
+    "normalized": "**strong** and *emphasis*, ~~strike~~, `code`, <https://example.com>, and [safe](https://example.com).",
+    "semantics": ["strong", "emphasis", "strike", "code", "https://example.com"]
+  },
+  {
+    "name": "lists tasks table image and code",
+    "source": "- item\n- [ ] todo\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![alt](https://example.com/image.png)\n\n```js\nconst value = 1;\n```",
+    "normalized": "- item\n- [ ] todo\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![alt](https://example.com/image.png)\n\n```js\nconst value = 1;\n```",
+    "semantics": ["item", "todo", "A", "B", "const value = 1;"]
+  },
+  {
+    "name": "hard break and inert html",
+    "source": "first  \nsecond\n\n<script>alert(1)</script><b>safe text</b>",
+    "normalized": "first  \nsecond\n\n<script>alert(1)</script><b>safe text</b>",
+    "semantics": ["first", "second", "safe text"]
+  }
+]

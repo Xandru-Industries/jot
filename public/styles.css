@@ -333,6 +333,16 @@ input:focus, textarea:focus { border-color: var(--muted); }
 .markdown-body a { color: var(--blue); }
 .markdown-body img { max-width: 100%; height: auto; }
 
+.markdown-body pre.frontmatter,
+.markdown-body pre[data-frontmatter] {
+  border-left: 4px solid var(--blue); border-radius: 8px;
+  background: var(--bg-2); color: var(--muted); font-size: 0.82rem;
+}
+.markdown-body li:has(> input[type="checkbox"]) { list-style: none; }
+.markdown-body input[type="checkbox"] { margin: 0 0.55rem 0 -1.35rem; accent-color: var(--blue); }
+.markdown-body table { display: block; overflow-x: auto; }
+.markdown-body a:focus-visible, .markdown-body input:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
 /* Mermaid diagrams */
 .mermaid-wrap { position: relative; margin: 0 0 1rem; overflow: hidden; border: 1px solid var(--code-border); border-radius: 14px; background: var(--code-bg); user-select: none; }
 .mermaid-viewport { overflow: hidden; }

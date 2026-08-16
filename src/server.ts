@@ -1699,7 +1699,8 @@ function sanitizeAnchor(input: unknown) {
 }
 
 function renderMarkdown(markdown: string) {
-  const rawHtml = marked.parse(markdown) as string;
+  const frontmatter = extractLeadingFrontmatter(markdown);
+  const rawHtml = `${frontmatter ? `<pre class="frontmatter"><code>${escapeHtml(frontmatter.source)}</code></pre>` : ""}${marked.parse(frontmatter ? frontmatter.body : markdown) as string}`;
   return sanitizeHtml(rawHtml, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       "img",
@@ -1729,13 +1730,25 @@ function renderMarkdown(markdown: string) {
     allowedClasses: {
       code: ["hljs", /^language-/],
       span: [/^hljs.*/],
-      pre: ["mermaid"],
+      pre: ["mermaid", "frontmatter"],
     },
     allowedSchemes: ["http", "https", "mailto"],
     transformTags: {
       a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
     },
   });
+}
+
+function extractLeadingFrontmatter(markdown: string) {
+  const normalized = markdown.replace(/\r\n?/g, "\n");
+  if (!normalized.startsWith("---\n")) return null;
+  const lines = normalized.split("\n");
+  const end = lines.findIndex((line, index) => index > 0 && (line === "---" || line === "..."));
+  if (end < 0) return null;
+  return {
+    source: lines.slice(0, end + 1).join("\n"),
+    body: lines.slice(end + 1).join("\n"),
+  };
 }
 
 function makeShareUrl(req: Request, shareId: string) {

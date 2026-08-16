@@ -15,6 +15,8 @@ import { TextSelection } from "@milkdown/prose/state";
 import { commonmark } from "@milkdown/preset-commonmark";
 import { gfm } from "@milkdown/preset-gfm";
 
+import { markdownProfile } from "./markdown-profile";
+import { normalizeFrontmatterInput } from "./schema/frontmatter";
 import { createPresencePlugin, presenceKey, type RemoteSelection } from "./presence";
 import { SelectionBridge, type ProseMirrorSelection, type SourceSelection } from "./selection-bridge";
 
@@ -40,7 +42,7 @@ export async function createRichEditor(options: RichEditorOptions) {
   const editor = await Editor.make()
     .config((ctx) => {
       ctx.set(rootCtx, options.root);
-      ctx.set(defaultValueCtx, options.markdown);
+      ctx.set(defaultValueCtx, normalizeFrontmatterInput(options.markdown));
       ctx.update(prosePluginsCtx, (plugins) => [...plugins, createPresencePlugin()]);
       ctx.get(listenerCtx)
         .markdownUpdated((_ctx, markdown, previousMarkdown) => {
@@ -57,6 +59,7 @@ export async function createRichEditor(options: RichEditorOptions) {
     })
     .use(commonmark)
     .use(gfm)
+    .use(markdownProfile)
     .use(history)
     .use(listener)
     .use(clipboard)
