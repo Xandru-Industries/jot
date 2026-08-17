@@ -385,6 +385,8 @@ input:focus, textarea:focus { border-color: var(--muted); }
   font-weight: 600; opacity: 0.9; background: var(--remote-color);
 }
 .remote-cursor-label::after { content: attr(data-label); }
+.rich-comment-highlight { background: var(--yellow); border-radius: 2px; }
+.rich-comment-highlight.active { background: var(--yellow-strong); }
 
 /* --- Share popover --- */
 .share-popover-wrap { position: relative; display: inline-flex; }
@@ -453,6 +455,8 @@ input:focus, textarea:focus { border-color: var(--muted); }
 }
 .thread-card.active { border-color: var(--muted); }
 .thread-card.resolved { opacity: 0.7; }
+.thread-card.unavailable { position: relative; top: auto; margin: 0 0 12px; opacity: 0.82; }
+.thread-anchor-status { padding-bottom: 0.45rem; color: var(--muted); font-size: 0.75rem; font-weight: 600; }
 
 .modal-actions, .thread-footer, .thread-message-head, .thread-message-actions {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
@@ -516,38 +520,18 @@ input:focus, textarea:focus { border-color: var(--muted); }
   .preview-stage.public .preview-canvas { padding-right: calc(var(--thread-width) + 20px); }
 }
 
-/* --- Preview button (editor narrow only, in topbar) --- */
-#previewFab { display: none !important; }
-
-.preview-close-btn {
-  display: none; position: sticky; top: 0; right: 0; z-index: 12;
-  margin-left: auto;
-}
-
 /* --- Narrow / mobile --- */
 @media (max-width: 980px) {
   .workspace { grid-template-columns: 1fr; }
   .editor-pane { border-right: 0; border-bottom: none; }
 
-  /* Hide preview by default in editor, show when toggled */
   .workspace .preview-stage {
-    position: fixed; inset: 0; z-index: 40;
-    transform: translateX(100%);
-    transition: transform 250ms ease;
+    position: static; transform: none;
     min-height: 100vh; height: 100vh;
   }
   .workspace.rich-workspace .preview-stage {
     position: static; transform: none; min-height: 100%; height: 100%;
   }
-  .workspace .preview-stage.preview-open {
-    transform: translateX(0);
-  }
-  .workspace .preview-stage .preview-close-btn { display: inline-flex; }
-  #previewFab { display: inline-flex !important; }
-
-  /* Editor takes full height */
-  .editor-textarea { min-height: 0; flex: 1; }
-
   .preview-scroll, .preview-stage { height: 100vh; min-height: 100vh; }
   .preview-scroll { height: 100%; }
   .preview-canvas { padding-right: 0; }
@@ -557,7 +541,5 @@ input:focus, textarea:focus { border-color: var(--muted); }
   .selection-bubble { display: none !important; }
   .topbar-desktop { display: none !important; }
 
-  /* Public page doesn't need the fab/close, preview is always visible */
   .preview-stage.public { position: static; transform: none; min-height: auto; height: auto; }
-  .preview-stage.public .preview-close-btn { display: none; }
 }

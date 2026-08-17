@@ -332,8 +332,6 @@
     const saveStatus = document.getElementById("saveStatus");
     const commenterLabel = document.getElementById("commenterLabel");
     const commentFab = document.getElementById("commentFab");
-    const previewFab = document.getElementById("previewFab");
-    const previewCloseButton = document.getElementById("previewCloseButton");
 
     const refs = {
       previewScroll,
@@ -355,8 +353,6 @@
       saveStatus,
       commenterLabel,
       commentFab,
-      previewFab,
-      previewCloseButton,
     };
 
     if (notesButton) {
@@ -427,6 +423,7 @@
               refs.titleInput.value = payload.title;
             }
             if (refs.topbarTitle) refs.topbarTitle.textContent = payload.title || "untitled";
+            scheduleLayout(refs);
           },
           onTextChange: (text) => {
             if (!state.note) {
@@ -434,6 +431,7 @@
             } else {
               state.note.markdown = text;
             }
+            scheduleLayout(refs);
           },
           onStatusChange: (status) => {
             const connected = status === "connected";
@@ -500,51 +498,6 @@
       updateSelectionBubble(refs);
       updateCommentFab(refs);
     });
-
-    if (previewFab) {
-      previewFab.addEventListener("click", () => {
-        const stage = document.getElementById("previewStage");
-        if (stage) {
-          stage.classList.add("preview-open");
-          previewFab.style.display = "none";
-        }
-      });
-    }
-
-    if (previewCloseButton) {
-      previewCloseButton.addEventListener("click", () => {
-        const stage = document.getElementById("previewStage");
-        if (stage) {
-          stage.classList.remove("preview-open");
-          if (previewFab) {
-            previewFab.style.display = "";
-          }
-        }
-      });
-    }
-
-    // Swipe right to close preview on mobile
-    {
-      let touchStartX = 0;
-      let touchStartY = 0;
-      const previewStage = document.getElementById("previewStage");
-      if (previewStage) {
-        previewStage.addEventListener("touchstart", (e) => {
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-        previewStage.addEventListener("touchend", (e) => {
-          const dx = e.changedTouches[0].clientX - touchStartX;
-          const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-          if (dx > 80 && dy < 100) {
-            previewStage.classList.remove("preview-open");
-            if (previewFab) {
-              previewFab.style.display = "";
-            }
-          }
-        }, { passive: true });
-      }
-    }
 
     if (previewCanvas) previewCanvas.addEventListener("click", (event) => {
       if (event.target.closest(".thread-rail") || event.target.closest(".selection-bubble")) {
@@ -1058,7 +1011,8 @@
   }
 
   function syncThreadLayout(refs) {
-    if (!refs.previewContent || !refs.threadRail || !refs.highlightLayer) {
+    const contentRoot = refs.richEditorRoot || refs.previewContent;
+    if (!contentRoot || !refs.threadRail || !refs.highlightLayer) {
       return;
     }
 
@@ -1081,8 +1035,13 @@
       if (thread.resolved && !state.showResolved) {
         continue;
       }
-      const match = locateAnchor(thread.anchor, refs.previewContent);
+      const match = locateAnchor(thread.anchor, contentRoot);
       if (!match) {
+        const card = document.createElement("section");
+        card.className = `thread-card unavailable${thread.resolved ? " resolved" : ""}`;
+        card.dataset.threadId = thread.id;
+        card.innerHTML = `<div class="thread-anchor-status">Anchor unavailable</div>${renderThreadCard(thread)}`;
+        refs.threadRail.appendChild(card);
         continue;
       }
       const rects = Array.from(match.range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
@@ -1110,7 +1069,6 @@
     }
 
     if (!visible.length) {
-      refs.threadRail.innerHTML = "";
       return;
     }
 
@@ -1263,13 +1221,14 @@
     }
 
     const range = selection.getRangeAt(0);
-    if (!refs.previewContent.contains(range.commonAncestorContainer)) {
+    const contentRoot = refs.richEditorRoot || refs.previewContent;
+    if (!contentRoot?.contains(range.commonAncestorContainer)) {
       refs.selectionBubble.classList.add("hidden");
       state.pendingAnchor = null;
       return;
     }
 
-    const anchor = buildAnchorFromSelection(refs.previewContent, range);
+    const anchor = buildAnchorFromSelection(contentRoot, range);
     if (!anchor || !anchor.quote.trim()) {
       refs.selectionBubble.classList.add("hidden");
       state.pendingAnchor = null;
@@ -1772,7 +1731,10 @@
 
   function collectTextNodes(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) { return node.parentElement?.closest(".mermaid-wrap") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; },
+      acceptNode(node) {
+        const excluded = node.parentElement?.closest(".mermaid-wrap, .mermaid-node, .mermaid-toolbar, .mermaid-preview, .remote-cursor, .remote-cursor-label, .ProseMirror-widget, svg, button, input");
+        return excluded ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
     });
     const segments = [];
     let node;

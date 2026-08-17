@@ -19,7 +19,7 @@
     "start:test": "node dist/server.js --port=43210 --data=.tmp/playwright-data",
     "test:browser": "playwright test",
     "test:e2e": "playwright test",
-    "test": "playwright test"
+    "test": "node tests/run-suite.mjs"
   },
   "dependencies": {
     "@milkdown/core": "7.22.1",

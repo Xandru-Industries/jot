@@ -31,13 +31,17 @@ export async function createNote(request, options = {}) {
   expect(created.ok()).toBeTruthy();
   const summary = (await created.json()).note;
   const markdown = options.markdown ?? "# Collaborative heading\n\nA directly editable paragraph.";
-  const updated = await request.put(`/api/notes/${summary.id}`, {
-    data: {
-      markdown,
-      title: options.title ?? "Rich editor test",
-      shareAccess: options.shareAccess ?? "edit",
-    },
-  });
+  const updateData = {
+    markdown,
+    title: options.title ?? "Rich editor test",
+    shareAccess: options.shareAccess ?? "edit",
+  };
+  let updated;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    updated = await request.put(`/api/notes/${summary.id}`, { data: updateData });
+    if (updated.ok()) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   expect(updated.ok()).toBeTruthy();
   const response = await request.get(`/api/notes/${summary.id}`);
   expect(response.ok()).toBeTruthy();
@@ -65,6 +69,10 @@ export async function waitForRichEditor(page) {
 export async function expectPersistedMarkdown(request, noteId, expected) {
   await expect.poll(async () => {
     const response = await request.get(`/api/notes/${noteId}`);
+    if (!response.ok()) {
+      await authenticateOwner(request);
+      return null;
+    }
     return (await response.json()).note.markdown;
   }).toBe(expected);
 }

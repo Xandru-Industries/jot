@@ -22,5 +22,5 @@ COPY --from=build /app/dist ./dist
 COPY public ./public
 COPY --from=build /app/public/generated ./public/generated
 RUN mkdir -p /app/data
-EXPOSE 3000
+EXPOSE 3210
 CMD ["node", "dist/server.js"]

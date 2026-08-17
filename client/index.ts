@@ -3,6 +3,7 @@ import { createRichEditor } from "./rich-editor";
 
 export { createRichEditor } from "./rich-editor";
 export { sanitizeMermaidSvg } from "./plugins/mermaid";
+export { extractCommentText } from "./comment-text";
 
 export type CreateRichCollabEditorOptions = {
   root: HTMLElement;
