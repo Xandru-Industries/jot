@@ -4,6 +4,8 @@ This file is for the next session. Read it first, then execute it. Do not keep p
 
 ## Immediate instruction to future self
 
+The unified rich editor release matrix now runs through `npm test`. It covers collaboration, Markdown/frontmatter, Mermaid, comments, security, public shares, and responsive behavior; the structure outline records residual visual and production-image checks.
+
 The current collab path is half-old, half-new, and broken. Stop trying to salvage it piecemeal.
 
 Immediately do a full semantic rewrite of collaborative editing based on the `articulated` semantic-rebasing demo architecture.

@@ -4,3 +4,11 @@ data/
 .env
 *.log
 .DS_Store
+
+public/generated/
+playwright-report/
+test-results/
+.tmp/playwright-data/
+
+# Riptide artifacts (cloud-synced)
+.humanlayer/tasks/

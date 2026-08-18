@@ -1,0 +1,12 @@
+[
+  {
+    "name": "prose heading list link task table frontmatter and code",
+    "markdown": "---\ntitle: Heading\n---\n\n# Heading\n\nParagraph with [link label](https://example.com).\n\n- [ ] Task label\n- List label\n\n| Column | Value |\n| --- | --- |\n| Table label | Cell |\n\n```js\nconst code = true;\n```",
+    "expected": "---\ntitle: Heading\n---\nHeading\nParagraph with link label.\nTask label\nList label\nColumn\nValue\nTable label\nCell\nconst code = true;"
+  },
+  {
+    "name": "excludes Mermaid and editor widgets",
+    "markdown": "# Heading\n\nBefore\n\n```mermaid\ngraph TD\n  A --> B\n```\n\nAfter",
+    "expected": "Heading\nBefore\nAfter"
+  }
+]

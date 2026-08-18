@@ -24,7 +24,7 @@
 
   async function renderMermaid(container) {
     const m = window.__mermaid;
-    if (!m || !container) return;
+    if (!m || !container || container.closest("#richEditor")) return;
     const freshNodes = Array.from(container.querySelectorAll("pre.mermaid")).filter((node) => node.textContent.trim());
 
     // Reuse cached wrappers for unchanged diagrams, preserving pan/zoom state
@@ -315,14 +315,14 @@
 
     const previewScroll = document.getElementById("previewScroll");
     const previewCanvas = document.getElementById("previewCanvas");
-    const previewContent = document.getElementById("previewContent");
+    const richEditorRoot = document.getElementById("richEditor");
+    const previewContent = document.getElementById("previewContent") || richEditorRoot;
     const threadRail = document.getElementById("threadRail");
     const highlightLayer = document.getElementById("highlightLayer");
     const selectionBubble = document.getElementById("selectionBubble");
     const modalBackdrop = document.getElementById("modalBackdrop");
     const topbarTitle = document.getElementById("topbarTitle");
     const titleInput = document.getElementById("titleInput");
-    const editorTextarea = document.getElementById("editorTextarea");
     const shareButton = document.getElementById("shareButton");
     const notesButton = document.getElementById("notesButton");
     const newNoteButton = document.getElementById("newNoteButton");
@@ -332,8 +332,6 @@
     const saveStatus = document.getElementById("saveStatus");
     const commenterLabel = document.getElementById("commenterLabel");
     const commentFab = document.getElementById("commentFab");
-    const previewFab = document.getElementById("previewFab");
-    const previewCloseButton = document.getElementById("previewCloseButton");
 
     const refs = {
       previewScroll,
@@ -345,7 +343,7 @@
       modalBackdrop,
       topbarTitle,
       titleInput,
-      editorTextarea,
+      richEditorRoot,
       shareButton,
       notesButton,
       newNoteButton,
@@ -355,8 +353,6 @@
       saveStatus,
       commenterLabel,
       commentFab,
-      previewFab,
-      previewCloseButton,
     };
 
     if (notesButton) {
@@ -408,25 +404,26 @@
     let collabEditor = null;
 
     function initCollabEditor() {
-      if (!editorTextarea) return;
-      import("/static/collab-editor.js").then(({ createCollabEditor }) => {
-        collabEditor = createCollabEditor(editorTextarea, {
+      if (!richEditorRoot) return;
+      const editorUrl = window.__RICH_EDITOR_URL__ || "/static/generated/rich-editor.js";
+      import(editorUrl).then(({ createRichCollabEditor }) => {
+        return createRichCollabEditor({
+          root: richEditorRoot,
           noteId: isPublic ? undefined : noteId,
           shareId: isPublic ? shareId : undefined,
-          name: isPublic ? (state.viewer?.commenterName || "Anonymous") : "Owner",
-          onReady: (payload) => {
+          onReady: (markdown, payload) => {
             state.note = {
               ...(state.note || {}),
               id: payload.noteId,
               title: payload.title,
               shareId: payload.shareId,
-              markdown: payload.markdown,
+              markdown,
             };
             if (refs.titleInput && document.activeElement !== refs.titleInput) {
               refs.titleInput.value = payload.title;
             }
             if (refs.topbarTitle) refs.topbarTitle.textContent = payload.title || "untitled";
-            scheduleRender(refs);
+            scheduleLayout(refs);
           },
           onTextChange: (text) => {
             if (!state.note) {
@@ -434,21 +431,27 @@
             } else {
               state.note.markdown = text;
             }
-            scheduleRender(refs);
+            scheduleLayout(refs);
           },
-          onConnectionChange: (connected) => {
+          onStatusChange: (status) => {
+            const connected = status === "connected";
             setSaveStatus(refs, connected ? "" : "Disconnected");
             const banner = document.getElementById("disconnectedBanner");
             if (banner) banner.classList.toggle("hidden", connected);
           },
-          onThreadsUpdated: () => {
+          onThreadsChanged: () => {
             reloadThreads(isPublic);
           },
         });
+      }).then((editor) => {
+        collabEditor = editor;
+      }).catch((error) => {
+        console.error("Failed to initialize rich editor:", error);
+        setSaveStatus(refs, "Editor unavailable");
       });
     }
 
-    if (editorTextarea && !isPublic) {
+    if (richEditorRoot && !isPublic) {
       initCollabEditor();
     }
 
@@ -495,51 +498,6 @@
       updateSelectionBubble(refs);
       updateCommentFab(refs);
     });
-
-    if (previewFab) {
-      previewFab.addEventListener("click", () => {
-        const stage = document.getElementById("previewStage");
-        if (stage) {
-          stage.classList.add("preview-open");
-          previewFab.style.display = "none";
-        }
-      });
-    }
-
-    if (previewCloseButton) {
-      previewCloseButton.addEventListener("click", () => {
-        const stage = document.getElementById("previewStage");
-        if (stage) {
-          stage.classList.remove("preview-open");
-          if (previewFab) {
-            previewFab.style.display = "";
-          }
-        }
-      });
-    }
-
-    // Swipe right to close preview on mobile
-    {
-      let touchStartX = 0;
-      let touchStartY = 0;
-      const previewStage = document.getElementById("previewStage");
-      if (previewStage) {
-        previewStage.addEventListener("touchstart", (e) => {
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-        previewStage.addEventListener("touchend", (e) => {
-          const dx = e.changedTouches[0].clientX - touchStartX;
-          const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
-          if (dx > 80 && dy < 100) {
-            previewStage.classList.remove("preview-open");
-            if (previewFab) {
-              previewFab.style.display = "";
-            }
-          }
-        }, { passive: true });
-      }
-    }
 
     if (previewCanvas) previewCanvas.addEventListener("click", (event) => {
       if (event.target.closest(".thread-rail") || event.target.closest(".selection-bubble")) {
@@ -599,7 +557,8 @@
 
     loadNote().catch((error) => {
       console.error(error);
-      refs.previewContent.innerHTML = `<p>${escapeHtml(error.message || "Failed to load note.")}</p>`;
+      const content = refs.previewContent || refs.richEditorRoot;
+      if (content) content.innerHTML = `<p>${escapeHtml(error.message || "Failed to load note.")}</p>`;
     });
 
     async function loadNote() {
@@ -687,18 +646,9 @@
         if (state.saveStatus !== "Saving") {
           state.note.markdown = payload.note.markdown;
           state.note.title = payload.note.title;
-          if (refsArg.editorTextarea && refsArg.editorTextarea.value !== payload.note.markdown) {
-            const scrollTop = refsArg.editorTextarea.scrollTop;
-            const selStart = refsArg.editorTextarea.selectionStart;
-            const selEnd = refsArg.editorTextarea.selectionEnd;
-            refsArg.editorTextarea.value = payload.note.markdown;
-            refsArg.editorTextarea.scrollTop = scrollTop;
-            refsArg.editorTextarea.setSelectionRange(selStart, selEnd);
-          }
           if (refsArg.titleInput && refsArg.titleInput.value !== payload.note.title) {
             refsArg.titleInput.value = payload.note.title;
           }
-          setPreviewHtml(refsArg, payload.note.renderedHtml || "");
         }
       }
 
@@ -741,10 +691,7 @@
       if (refsArg.titleInput) {
         refsArg.titleInput.value = payload.note.title || "untitled";
       }
-      if (refsArg.editorTextarea) {
-        refsArg.editorTextarea.value = payload.note.markdown || "";
-      }
-      setPreviewHtml(refsArg, payload.note.renderedHtml || "");
+      if (publicMode && !isPublicEdit) setPreviewHtml(refsArg, payload.note.renderedHtml || "");
       if (refsArg.commenterLabel) {
         refsArg.commenterLabel.textContent = payload.viewer.commenterName ? payload.viewer.commenterName : "anonymous";
       }
@@ -756,18 +703,6 @@
       syncThreadLayout(refsArg);
     }
 
-    function scheduleRender(refsArg) {
-      clearTimeout(state.renderTimer);
-      state.renderTimer = setTimeout(async () => {
-        const endpoint = isPublic ? `/api/share/${shareId}/render` : "/api/render";
-        const payload = await api(endpoint, {
-          method: "POST",
-          body: { markdown: state.note?.markdown || "" },
-        });
-        setPreviewHtml(refsArg, payload.html);
-        syncThreadLayout(refsArg);
-      }, 150);
-    }
   }
 
   function renderEditorLayout() {
@@ -780,7 +715,6 @@
             <span class="status-text" id="saveStatus"></span>
           </div>
           <div class="topbar-right">
-            <jot-icon-button icon="preview" label="Preview" id="previewFab"></jot-icon-button>
             <jot-icon-button icon="robot" label="Agent setup" id="agentButton"></jot-icon-button>
             <div class="share-popover-wrap" id="sharePopoverWrap">
               <jot-icon-button icon="share" label="Share" id="shareButton"></jot-icon-button>
@@ -789,20 +723,16 @@
             <button type="button" class="jot-btn-icon jot-btn-icon--md theme-toggle" aria-label="Toggle theme">${themeIcon(document.documentElement.getAttribute("data-theme") || "dark")}</button>
           </div>
         </header>
-        <main class="workspace">
-          <section class="editor-pane">
+        <main class="workspace rich-workspace">
+          <section class="preview-stage rich-editor-stage" id="previewStage">
             <div id="disconnectedBanner" class="editor-disconnected hidden">Disconnected. Reconnecting...</div>
-            <textarea id="editorTextarea" class="editor-textarea" spellcheck="false"></textarea>
-          </section>
-          <section class="preview-stage" id="previewStage">
-            <jot-icon-button icon="close" label="Close preview" id="previewCloseButton" class="preview-close-btn"></jot-icon-button>
             <div class="preview-controls" id="previewControls">
               <jot-button variant="ghost" size="sm" id="commentsButton">hide comments</jot-button>
               <jot-button variant="ghost" size="sm" id="resolvedButton">resolved</jot-button>
             </div>
             <div class="preview-scroll" id="previewScroll">
               <div class="preview-canvas" id="previewCanvas">
-                <div class="preview-content markdown-body" id="previewContent"></div>
+                <div class="rich-editor markdown-body" id="richEditor"></div>
                 <div class="highlight-layer" id="highlightLayer"></div>
                 <button type="button" class="selection-bubble hidden" id="selectionBubble">+ Comment</button>
                 <button type="button" class="comment-fab" id="commentFab">+ Comment</button>
@@ -868,25 +798,20 @@
             <span class="status-text" id="saveStatus"></span>
           </div>
           <div class="topbar-right">
-            <jot-icon-button icon="preview" label="Preview" id="previewFab"></jot-icon-button>
             <jot-icon-button icon="robot" label="Agent setup" id="agentButton"></jot-icon-button>
             <button type="button" class="jot-btn-icon jot-btn-icon--md theme-toggle" aria-label="Toggle theme">${themeIcon(document.documentElement.getAttribute("data-theme") || "dark")}</button>
           </div>
         </header>
-        <main class="workspace">
-          <section class="editor-pane">
+        <main class="workspace rich-workspace">
+          <section class="preview-stage rich-editor-stage" id="previewStage">
             <div id="disconnectedBanner" class="editor-disconnected hidden">Disconnected. Reconnecting...</div>
-            <textarea id="editorTextarea" class="editor-textarea" spellcheck="false"></textarea>
-          </section>
-          <section class="preview-stage" id="previewStage">
-            <jot-icon-button icon="close" label="Close preview" id="previewCloseButton" class="preview-close-btn"></jot-icon-button>
             <div class="preview-controls" id="previewControls">
               <jot-button variant="ghost" size="sm" id="commentsButton">hide comments</jot-button>
               <jot-button variant="ghost" size="sm" id="resolvedButton">resolved</jot-button>
             </div>
             <div class="preview-scroll" id="previewScroll">
               <div class="preview-canvas" id="previewCanvas">
-                <div class="preview-content markdown-body" id="previewContent"></div>
+                <div class="rich-editor markdown-body" id="richEditor"></div>
                 <div class="highlight-layer" id="highlightLayer"></div>
                 <button type="button" class="selection-bubble hidden" id="selectionBubble">+ Comment</button>
                 <button type="button" class="comment-fab" id="commentFab">+ Comment</button>
@@ -1086,7 +1011,8 @@
   }
 
   function syncThreadLayout(refs) {
-    if (!refs.previewContent || !refs.threadRail || !refs.highlightLayer) {
+    const contentRoot = refs.richEditorRoot || refs.previewContent;
+    if (!contentRoot || !refs.threadRail || !refs.highlightLayer) {
       return;
     }
 
@@ -1109,8 +1035,13 @@
       if (thread.resolved && !state.showResolved) {
         continue;
       }
-      const match = locateAnchor(thread.anchor, refs.previewContent);
+      const match = locateAnchor(thread.anchor, contentRoot);
       if (!match) {
+        const card = document.createElement("section");
+        card.className = `thread-card unavailable${thread.resolved ? " resolved" : ""}`;
+        card.dataset.threadId = thread.id;
+        card.innerHTML = `<div class="thread-anchor-status">Anchor unavailable</div>${renderThreadCard(thread)}`;
+        refs.threadRail.appendChild(card);
         continue;
       }
       const rects = Array.from(match.range.getClientRects()).filter((rect) => rect.width > 0 && rect.height > 0);
@@ -1138,7 +1069,6 @@
     }
 
     if (!visible.length) {
-      refs.threadRail.innerHTML = "";
       return;
     }
 
@@ -1291,13 +1221,14 @@
     }
 
     const range = selection.getRangeAt(0);
-    if (!refs.previewContent.contains(range.commonAncestorContainer)) {
+    const contentRoot = refs.richEditorRoot || refs.previewContent;
+    if (!contentRoot?.contains(range.commonAncestorContainer)) {
       refs.selectionBubble.classList.add("hidden");
       state.pendingAnchor = null;
       return;
     }
 
-    const anchor = buildAnchorFromSelection(refs.previewContent, range);
+    const anchor = buildAnchorFromSelection(contentRoot, range);
     if (!anchor || !anchor.quote.trim()) {
       refs.selectionBubble.classList.add("hidden");
       state.pendingAnchor = null;
@@ -1800,7 +1731,10 @@
 
   function collectTextNodes(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) { return node.parentElement?.closest(".mermaid-wrap") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; },
+      acceptNode(node) {
+        const excluded = node.parentElement?.closest(".mermaid-wrap, .mermaid-node, .mermaid-toolbar, .mermaid-preview, .remote-cursor, .remote-cursor-label, .ProseMirror-widget, svg, button, input");
+        return excluded ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      },
     });
     const segments = [];
     let node;

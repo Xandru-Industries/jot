@@ -133,6 +133,7 @@ const authFilePath = path.join(dataDir, "auth.json");
 const publicDir = path.join(path.resolve(__dirname, ".."), "public");
 const ownerSessionCookieName = "md_owner_session";
 const ownerLocalStorageTokenKey = "md_owner_token";
+const richEditorBuildVersion = process.env.JOT_BUILD_VERSION || "0.1.2";
 const commenterIdCookieName = "md_commenter_id";
 const commenterNameCookieName = "md_commenter_name";
 const ownerCookieMaxAgeSeconds = 60 * 60 * 24 * 30;
@@ -1698,7 +1699,8 @@ function sanitizeAnchor(input: unknown) {
 }
 
 function renderMarkdown(markdown: string) {
-  const rawHtml = marked.parse(markdown) as string;
+  const frontmatter = extractLeadingFrontmatter(markdown);
+  const rawHtml = `${frontmatter ? `<pre class="frontmatter"><code>${escapeHtml(frontmatter.source)}</code></pre>` : ""}${marked.parse(frontmatter ? frontmatter.body : markdown) as string}`;
   return sanitizeHtml(rawHtml, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
       "img",
@@ -1728,13 +1730,25 @@ function renderMarkdown(markdown: string) {
     allowedClasses: {
       code: ["hljs", /^language-/],
       span: [/^hljs.*/],
-      pre: ["mermaid"],
+      pre: ["mermaid", "frontmatter"],
     },
     allowedSchemes: ["http", "https", "mailto"],
     transformTags: {
       a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
     },
   });
+}
+
+function extractLeadingFrontmatter(markdown: string) {
+  const normalized = markdown.replace(/\r\n?/g, "\n");
+  if (!normalized.startsWith("---\n")) return null;
+  const lines = normalized.split("\n");
+  const end = lines.findIndex((line, index) => index > 0 && (line === "---" || line === "..."));
+  if (end < 0) return null;
+  return {
+    source: lines.slice(0, end + 1).join("\n"),
+    body: lines.slice(end + 1).join("\n"),
+  };
 }
 
 function makeShareUrl(req: Request, shareId: string) {
@@ -2178,7 +2192,7 @@ function renderAppShell(
   </head>
   <body class="page-shell app-page" ${attrs}>
     <div id="app"></div>
-    <script>window.__OWNER_TOKEN_KEY__ = ${JSON.stringify(ownerLocalStorageTokenKey)};</script>
+    <script>window.__OWNER_TOKEN_KEY__ = ${JSON.stringify(ownerLocalStorageTokenKey)}; window.__RICH_EDITOR_URL__ = ${JSON.stringify(`/static/generated/rich-editor.js?v=${richEditorBuildVersion}`)};</script>
     <script>document.querySelectorAll('.theme-toggle').forEach(function(b){b.innerHTML=window.__themeIcon(document.documentElement.getAttribute('data-theme')||'dark')});</script>
     <script src="/static/components.js"></script>${
       page !== "list"

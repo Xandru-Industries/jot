@@ -15,6 +15,7 @@
     var next = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     localStorage.setItem("md_theme", next);
+    window.dispatchEvent(new CustomEvent("jot-theme-change", { detail: { theme: next } }));
     var buttons = document.querySelectorAll(".theme-toggle");
     for (var i = 0; i < buttons.length; i++) {
       buttons[i].innerHTML = window.__themeIcon(next);
